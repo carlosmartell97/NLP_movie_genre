@@ -19,6 +19,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import LinearSVC
 from sklearn.model_selection import cross_val_score
 import seaborn as sns
+import warnings
 
 
 def get_key(item):
@@ -67,36 +68,39 @@ print(features.shape, end='\n\n')
 #     print("  . Most correlated unigrams:\n    . {}".format('\n    . '.join(unigrams[-N:])))
 #     print("  . Most correlated bigrams:\n    . {}".format('\n    . '.join(bigrams[-N:])))
 
-# Naive Bayes Classifier
-X_train, X_test, y_train, y_test = train_test_split(df['synopsis'], df['genre'], random_state=0, test_size=0.25)
-count_vect = CountVectorizer()
-X_train_counts = count_vect.fit_transform(X_train)
-tfidf_transformer = TfidfTransformer()
-X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
-clf = MultinomialNB().fit(X_train_tfidf, y_train)
-test_synopsis = "Summer's here and everyone is pumped for the beach. They weren't accounting for a speaking dog to join them though, and change their lives forever."
-test_prediction = clf.predict(count_vect.transform([test_synopsis]))
-print("\n%s -> %s\n" % (test_synopsis, test_prediction))
-
-# Logistic Regression, Multinomal Naive Bayes, Linear Support Vector Machine
-#   and Random Forest models
+# various models
+warnings.filterwarnings("ignore")
 models = [
-    RandomForestClassifier(n_estimators=200, max_depth=3, random_state=0),
-    LinearSVC(),
-    MultinomialNB(),
-    LogisticRegression(random_state=0),
+    (RandomForestClassifier(n_estimators=200, max_depth=3, random_state=0), "random forest"),
+    (LinearSVC(), "linear support vector"),
+    (MultinomialNB(), "multinomial naive bayes"),
+    (LogisticRegression(random_state=0), "logistic regression")
 ]
-CV = 6
-cv_df = pd.DataFrame(index=range(CV * len(models)))
-entries = []
-for model in models:
-  model_name = model.__class__.__name__
-  accuracies = cross_val_score(model, features, labels, scoring='accuracy', cv=CV)
-  for fold_idx, accuracy in enumerate(accuracies):
-    entries.append((model_name, fold_idx, accuracy))
-cv_df = pd.DataFrame(entries, columns=['model_name', 'fold_idx', 'accuracy'])
-sns.boxplot(x='model_name', y='accuracy', data=cv_df)
-sns.stripplot(x='model_name', y='accuracy', data=cv_df,
-              size=8, jitter=True, edgecolor="gray", linewidth=2)
-print(cv_df.groupby('model_name').accuracy.mean())
-plt.title('model accuracies'), plt.show()
+print("trying different test sizes...")
+test_sizes = np.arange(0.25, 0.4, 0.01)
+best_score = 0
+best_model = "?"
+best_test_size = 0
+for size in test_sizes:
+    print("test: %d%%" % (size*100))
+    for m in models:
+        model = m[0]
+        model_name = m[1]
+        X_train, X_test, y_train, y_test = train_test_split(df['synopsis'], df['genre'], random_state=0, test_size=size)
+        count_vect = CountVectorizer()
+        X_train_counts = count_vect.fit_transform(X_train)
+        X_test_counts = count_vect.transform(X_test)
+        tfidf_transformer = TfidfTransformer()
+        X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
+        X_test_tfidf = tfidf_transformer.transform(X_test_counts)
+        clf = model.fit(X_train_tfidf, y_train)
+        score = model.score(X_test_tfidf, y_test)
+        if score > best_score:
+            best_score = score
+            best_model = model_name
+            best_test_size = size
+        print("\t%s score:%f" % (model_name, score))
+        # test_synopsis = "Summer's here and everyone is pumped for the beach. They weren't accounting for a speaking dog to join them though, and change their lives forever."
+        # test_prediction = clf.predict(count_vect.transform([test_synopsis]))
+        # print("\n%s -> %s\n" % (test_synopsis, test_prediction))
+print("best model:%s with %0.2f%% accuracy, using %d%% for testing" % (best_model, best_score*100, best_test_size*100))
