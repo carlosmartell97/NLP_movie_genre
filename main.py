@@ -77,7 +77,7 @@ models = [
     (LogisticRegression(random_state=0), "logistic regression")
 ]
 print("trying different test sizes...")
-test_sizes = np.arange(0.25, 0.4, 0.01)
+test_sizes = np.arange(0.20, 0.4, 0.01)
 best_score = 0
 best_model = "?"
 best_test_size = 0
