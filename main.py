@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from wordcloud import WordCloud
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_selection import chi2
 from sklearn.model_selection import train_test_split
@@ -24,6 +25,16 @@ genre_to_id = dict(genre_id_df.values)
 print(df.head(10), end="\n\n")  # show first 10 rows
 df.groupby('genre').synopsis.count().plot.bar(ylim=0)
 plt.title('word count per genre'), plt.show()
+
+# show word clouds per genre
+genres_words = {genre: "" for genre in set(df['genre'])}
+total_genres = len(genres_words)
+for _index, row in df.iterrows():
+    genres_words[row['genre']] += row['synopsis']
+for i, genre in enumerate(genres_words.keys()):
+    wordcloud = WordCloud(max_font_size=40).generate(genres_words[genre])
+    plt.subplot2grid((total_genres//3, 3), (i//3, i%3)), plt.title(genre), plt.imshow(wordcloud, interpolation="bilinear")
+plt.show()
 
 # extract features
 tfidf = TfidfVectorizer(sublinear_tf=True, min_df=3, norm='l2',
@@ -91,5 +102,6 @@ plt.xlabel('test set %'), plt.ylabel('accuracy'), plt.title('model accuracies'),
 
 while True:
     input_synopsis = input("Enter movie description: ")
+    input_synopsis = data_and_scores.stem_without_stop(input_synopsis)
     prediction = best_classifier.predict(count_vect.transform([input_synopsis]))
     print("predicted genre: %s" % prediction)
